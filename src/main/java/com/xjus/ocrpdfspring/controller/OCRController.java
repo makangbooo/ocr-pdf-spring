@@ -1,6 +1,9 @@
  // src/main/java/com/example/ocr/controller/OCRController.java
 package com.xjus.ocrpdfspring.controller;
 
+import com.xjus.ocrpdfspring.entity.FileInfo;
+import com.xjus.ocrpdfspring.model.BaseResult;
+import com.xjus.ocrpdfspring.utils.ResultGenerator;
 import net.sourceforge.tess4j.ITessAPI;
 import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
@@ -30,15 +33,16 @@ import java.util.UUID;
 import static org.apache.pdfbox.pdmodel.graphics.state.RenderingMode.NEITHER;
 
 @RestController
-@CrossOrigin(origins = "*") // 允许前端访问
 @RequestMapping("/OCRToPDF")
 public class OCRController {
 
     @Value("${file.upload-dir}")
     private String uploadDir;
+    @Value("${file.pdf-dir}")
+    private String pdfDir;
 
     @PostMapping("/imageToPDF")
-    public void uploadImage(@RequestParam("file") MultipartFile file, HttpServletResponse response) {
+    public FileInfo imageToPDF(@RequestParam("file") MultipartFile file, HttpServletResponse response) {
         try {
             // 读取上传的图片
             BufferedImage image = ImageIO.read(file.getInputStream());
@@ -48,6 +52,7 @@ public class OCRController {
 
             // 初始化Tesseract OCR
             Tesseract tesseract = new Tesseract();
+
             tesseract.setLanguage("chi_sim"); // 设置为简体中文
             tesseract.setDatapath("/opt/homebrew/share/tessdata");  // 指定 tessdata 数据目录
             tesseract.setOcrEngineMode(ITessAPI.TessOcrEngineMode.OEM_LSTM_ONLY); // 使用LSTM引擎
@@ -76,7 +81,7 @@ public class OCRController {
             contentStream.setFont(font, 12);
             contentStream.setNonStrokingColor(255, 255, 255, 0); // 设置透明，使文本不可见
             // 设置文本渲染模式为不可见
-//            contentStream.setRenderingMode(NEITHER);
+            contentStream.setRenderingMode(NEITHER);
             contentStream.newLineAtOffset(10, image.getHeight() - 20); // 从图片顶部开始写文字
 
             // 逐行写入OCR识别的文本
@@ -88,16 +93,67 @@ public class OCRController {
             contentStream.endText();
             contentStream.close();
 
-            // 设置响应类型为 PDF
-            response.setContentType("application/pdf");
-            document.save(response.getOutputStream());
+            // 将合成的pdf文件保存到pdf文件夹中
+            // 生成唯一的文件名
+            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename() + ".pdf";
+            Path filePath = Paths.get(pdfDir, fileName);
+            document.save(filePath.toFile());
             document.close();
+
+            // 将合成的pdf文件返回给前端
+            FileInfo fileInfo = new FileInfo();
+            fileInfo.setName(file.getOriginalFilename());
+            fileInfo.setSize(file.getSize());
+            fileInfo.setPath("http://localhost:8080/" + fileName);
+
+            return fileInfo;
 
         } catch (IOException | TesseractException e) {
             e.printStackTrace();
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+//            return ResultGenerator.fail("Failed to OCR image");
+            return null;
         }
     }
+
+    @PostMapping("/ocrImage")
+    public String ocrImage(@RequestParam("file") MultipartFile file, HttpServletResponse response) {
+        try {
+            // 读取上传的图片
+            BufferedImage image = ImageIO.read(file.getInputStream());
+
+            // 将图片保存到临时文件夹（./upload文件夹下）、
+            // 生成唯一的文件名
+            String fileName = UUID.randomUUID().toString() + "_111111_" + file.getOriginalFilename();
+            Path filePath = Paths.get(uploadDir, fileName);
+            Files.copy(file.getInputStream(), filePath);
+
+            System.setProperty("jna.library.path", "/opt/homebrew/Cellar/tesseract/5.5.0/lib");
+            System.load("/opt/homebrew/Cellar/tesseract/5.5.0/lib/libtesseract.dylib");
+
+            // 初始化Tesseract OCR
+            Tesseract tesseract = new Tesseract();
+
+            tesseract.setLanguage("chi_sim"); // 设置为简体中文
+            tesseract.setDatapath("/opt/homebrew/share/tessdata");  // 指定 tessdata 数据目录
+            tesseract.setOcrEngineMode(ITessAPI.TessOcrEngineMode.OEM_LSTM_ONLY); // 使用LSTM引擎
+            tesseract.setPageSegMode(ITessAPI.TessPageSegMode.PSM_AUTO); // 自动页面分割
+
+            // 识别图片中的文字
+            String recognizedText = tesseract.doOCR(image);
+
+
+            return recognizedText;
+
+        } catch (IOException | TesseractException e) {
+            e.printStackTrace();
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+//            return ResultGenerator.fail("Failed to OCR image");
+            return null;
+        }
+    }
+
+
     @PostMapping("/uploadImage")
     public ResponseEntity<String> uploadImage(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
