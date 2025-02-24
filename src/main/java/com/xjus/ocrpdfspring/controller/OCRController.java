@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.UUID;
 
 import static org.apache.pdfbox.pdmodel.graphics.state.RenderingMode.NEITHER;
@@ -42,68 +43,73 @@ public class OCRController {
     private String pdfDir;
 
     @PostMapping("/imageToPDF")
-    public FileInfo imageToPDF(@RequestParam("file") MultipartFile file, HttpServletResponse response) {
+    public FileInfo imageToPDF(@RequestParam("file") List<MultipartFile> files, HttpServletResponse response) {
         try {
-            // 读取上传的图片
-            BufferedImage image = ImageIO.read(file.getInputStream());
-
-            System.setProperty("jna.library.path", "/opt/homebrew/Cellar/tesseract/5.5.0/lib");
-            System.load("/opt/homebrew/Cellar/tesseract/5.5.0/lib/libtesseract.dylib");
-
-            // 初始化Tesseract OCR
-            Tesseract tesseract = new Tesseract();
-
-            tesseract.setLanguage("chi_sim"); // 设置为简体中文
-            tesseract.setDatapath("/opt/homebrew/share/tessdata");  // 指定 tessdata 数据目录
-            tesseract.setOcrEngineMode(ITessAPI.TessOcrEngineMode.OEM_LSTM_ONLY); // 使用LSTM引擎
-            tesseract.setPageSegMode(ITessAPI.TessPageSegMode.PSM_AUTO); // 自动页面分割
-
-            // 识别图片中的文字
-            String recognizedText = tesseract.doOCR(image);
-            // 获取带坐标的OCR结果（hOCR格式）
-//            String hocrResult = tesseract.doOCR(image, null, ITessAPI.TessPageSegMode.PSM_AUTO, "hocr");
+            if (files == null || files.isEmpty()) {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                return null;
+            }
 
             // 创建 PDF 文档
             PDDocument document = new PDDocument();
-            PDPage page = new PDPage(new PDRectangle(image.getWidth(), image.getHeight())); // 根据图片尺寸设置PDF页面
-            document.addPage(page);
 
-            // 将图片嵌入PDF
-            PDImageXObject pdImage = PDImageXObject.createFromByteArray(document, file.getBytes(), file.getOriginalFilename());
-            PDPageContentStream contentStream = new PDPageContentStream(document, page);
-            contentStream.drawImage(pdImage, 0, 0, image.getWidth(), image.getHeight());
+            // 处理多个图片文件
+            for (MultipartFile file : files) {
+                // 读取上传的图片
+                BufferedImage image = ImageIO.read(file.getInputStream());
 
-            // 设置字体
-            PDType0Font font = PDType0Font.load(document, new File("/Library/Fonts/Arial Unicode.ttf"));
+                System.setProperty("jna.library.path", "/opt/homebrew/Cellar/tesseract/5.5.0/lib");
+                System.load("/opt/homebrew/Cellar/tesseract/5.5.0/lib/libtesseract.dylib");
 
-            // 写入识别的文字到 PDF
-            contentStream.beginText();
-            contentStream.setFont(font, 12);
-            contentStream.setNonStrokingColor(255, 255, 255, 0); // 设置透明，使文本不可见
-            // 设置文本渲染模式为不可见
-            contentStream.setRenderingMode(NEITHER);
-            contentStream.newLineAtOffset(10, image.getHeight() - 20); // 从图片顶部开始写文字
+                // 初始化Tesseract OCR
+                Tesseract tesseract = new Tesseract();
+                tesseract.setLanguage("chi_sim"); // 设置为简体中文
+                tesseract.setDatapath("/opt/homebrew/share/tessdata");  // 指定 tessdata 数据目录
+                tesseract.setOcrEngineMode(ITessAPI.TessOcrEngineMode.OEM_LSTM_ONLY); // 使用LSTM引擎
+                tesseract.setPageSegMode(ITessAPI.TessPageSegMode.PSM_AUTO); // 自动页面分割
 
-            // 逐行写入OCR识别的文本
-            for (String line : recognizedText.split("\n")) {
-                contentStream.showText(line);
-                contentStream.newLineAtOffset(0, -15); // 行间距
+                // 识别图片中的文字
+                String recognizedText = tesseract.doOCR(image);
+
+                // 为每个图片创建新页面
+                PDPage page = new PDPage(new PDRectangle(image.getWidth(), image.getHeight()));
+                document.addPage(page);
+
+                // 将图片嵌入PDF
+                PDImageXObject pdImage = PDImageXObject.createFromByteArray(document, file.getBytes(), file.getOriginalFilename());
+                PDPageContentStream contentStream = new PDPageContentStream(document, page);
+                contentStream.drawImage(pdImage, 0, 0, image.getWidth(), image.getHeight());
+
+                // 设置字体
+                PDType0Font font = PDType0Font.load(document, new File("/Library/Fonts/Arial Unicode.ttf"));
+
+                // 写入识别的文字到 PDF
+                contentStream.beginText();
+                contentStream.setFont(font, 12);
+                contentStream.setNonStrokingColor(255, 255, 255, 0); // 设置透明，使文本不可见
+                contentStream.setRenderingMode(NEITHER);
+                contentStream.newLineAtOffset(10, image.getHeight() - 20);
+
+                // 逐行写入OCR识别的文本
+                for (String line : recognizedText.split("\n")) {
+                    contentStream.showText(line);
+                    contentStream.newLineAtOffset(0, -15);
+                }
+
+                contentStream.endText();
+                contentStream.close();
             }
 
-            contentStream.endText();
-            contentStream.close();
-
-            // 将合成的pdf文件保存到pdf文件夹中
-            // 生成唯一的文件名
-            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename() + ".pdf";
+            // 生成唯一的文件名（使用第一个文件的名称作为基础）
+            String fileName = UUID.randomUUID().toString() + "_" + files.get(0).getOriginalFilename() + ".pdf";
             Path filePath = Paths.get(pdfDir, fileName);
             document.save(filePath.toFile());
             document.close();
 
-            // 将合成的pdf文件返回给前端
+            // 返回文件信息（使用第一个文件的信息）
             FileInfo fileInfo = new FileInfo();
-            fileInfo.setName(file.getOriginalFilename());
-            fileInfo.setSize(file.getSize());
+            fileInfo.setName(files.get(0).getOriginalFilename());
+            fileInfo.setSize(files.stream().mapToLong(MultipartFile::getSize).sum()); // 所有文件总大小
             fileInfo.setPath("http://localhost:8080/" + fileName);
 
             return fileInfo;
@@ -111,7 +117,6 @@ public class OCRController {
         } catch (IOException | TesseractException e) {
             e.printStackTrace();
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-//            return ResultGenerator.fail("Failed to OCR image");
             return null;
         }
     }
