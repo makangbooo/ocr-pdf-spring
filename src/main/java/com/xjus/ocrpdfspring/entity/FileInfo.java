@@ -29,10 +29,11 @@ import java.util.Date;
 public class FileInfo implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	@TableId
+
 	/**
 	 * id
 	 */
+	@TableId
 	private String id; // id
 
 	/**
@@ -60,10 +61,10 @@ public class FileInfo implements Serializable {
 	 */
 	private Long size; // 文件大小
 
-	@TableField(updateStrategy = FieldStrategy.IGNORED)
 	/**
 	 * 文件过期时间
 	 */
+	@TableField(updateStrategy = FieldStrategy.IGNORED)
 	private Date expireTime; // 文件过期时间
 
 	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)

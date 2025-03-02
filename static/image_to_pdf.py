@@ -15,7 +15,8 @@ def convert_to_pdf(image_paths, pdf_path):
     with open(pdf_path, "wb") as f:
         f.write(img2pdf.convert(image_paths))
 
-def process_images_to_pdf(image_paths, output_pdf_path, server_url="http://1.117.68.241:1224"):
+# def process_images_to_pdf(image_paths, output_pdf_path, server_url="http://1.117.68.241:1224"):
+def process_images_to_pdf(image_paths, output_pdf_path, server_url="http://1.95.55.32:1224"):
     # 创建 PDF
     temp_pdf = output_pdf_path + "_temp.pdf"
     convert_to_pdf(image_paths, temp_pdf)

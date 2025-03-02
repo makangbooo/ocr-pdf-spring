@@ -10,10 +10,11 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOrigins("http://localhost:3000")  // 显式列出前端地址
-                .allowedMethods("GET", "POST", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true);  // 允许跨域请求时带上凭证
+        registry.addMapping("/**") // 匹配所有路径
+                .allowedOrigins("*") // 允许所有来源
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // 允许的请求方法
+                .allowedHeaders("*") // 允许所有请求头
+                .allowCredentials(false) // 注意：使用 "*" 时不能设置为 true
+                .maxAge(3600); // 预检请求缓存时间（秒）
     }
 }

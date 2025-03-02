@@ -1,13 +1,11 @@
- // src/main/java/com/example/ocr/controller/OCRController.java
 package com.xjus.ocrpdfspring.controller;
 
 import com.xjus.ocrpdfspring.entity.FileInfo;
 
+import com.xjus.ocrpdfspring.model.FileInfoVO;
 import net.sourceforge.tess4j.ITessAPI;
 import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
-
-
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -28,8 +26,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import static org.apache.pdfbox.pdmodel.graphics.state.RenderingMode.NEITHER;
-
 @RestController
 @RequestMapping("/OCRToPDF")
 public class OCRController {
@@ -38,11 +34,13 @@ public class OCRController {
     private String uploadDir;
     @Value("${file.pdf-dir}")
     private String pdfDir;
+    @Value("${file.sever-name}")
+    private String severName;
 
     private static final String PYTHON_SCRIPT_PATH = "static/image_to_pdf.py"; // Python 脚本路径
 
     @PostMapping("/imageToPDF")
-    public FileInfo imageToPDF(@RequestBody List<FileInfo> files, HttpServletResponse response) {
+    public FileInfo imageToPDF(@RequestBody List<FileInfoVO> files, HttpServletResponse response) {
         try {
             if (files == null || files.isEmpty()) {
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -59,7 +57,6 @@ public class OCRController {
             // 生成输出 PDF 文件名
             String outputPdfName = UUID.randomUUID() + "_output.pdf";
             Path filePath = Paths.get(pdfDir, outputPdfName);
-//            Path filePath = Paths.get(pdfDir);
 
 
             // 调用 Python 脚本
@@ -84,10 +81,10 @@ public class OCRController {
             }
 
             // 返回文件信息
-            FileInfo fileInfo = new FileInfo();
+            FileInfoVO fileInfo = new FileInfoVO();
             fileInfo.setName(files.get(0).getName() + "_converted.pdf");
             fileInfo.setSize(Files.size(filePath));
-            fileInfo.setPath("http://localhost:8080/" + outputPdfName);
+            fileInfo.setPath(severName + outputPdfName);
             return fileInfo;
 
         } catch (IOException | InterruptedException e) {
@@ -96,8 +93,8 @@ public class OCRController {
             return null;
         }
     }
-    @PostMapping("/ocrImage")
 
+    @PostMapping("/ocrImage")
     public String ocrImage(@RequestParam("file") MultipartFile file, HttpServletResponse response) {
         try {
             // 读取上传的图片
@@ -118,13 +115,12 @@ public class OCRController {
             tesseract.setLanguage("chi_sim"); // 设置为简体中文
             tesseract.setDatapath("/opt/homebrew/share/tessdata");  // 指定 tessdata 数据目录
             tesseract.setOcrEngineMode(ITessAPI.TessOcrEngineMode.OEM_LSTM_ONLY); // 使用LSTM引擎
-            tesseract.setPageSegMode(ITessAPI.TessPageSegMode.PSM_AUTO); // 自动页面分割
+            tesseract.setPageSegMode(ITessAPI.TessPageSegMode.PSM_SINGLE_BLOCK);
 
             // 识别图片中的文字
-            String recognizedText = tesseract.doOCR(image);
 
 
-            return recognizedText;
+            return tesseract.doOCR(image);
 
         } catch (IOException | TesseractException e) {
             e.printStackTrace();
@@ -134,9 +130,8 @@ public class OCRController {
         }
     }
 
-
     @PostMapping("/uploadImage")
-    public ResponseEntity<FileInfo> uploadImage(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<FileInfoVO> uploadImage(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
@@ -155,8 +150,8 @@ public class OCRController {
             Files.copy(file.getInputStream(), filePath);
 
             // 返回文件的URL地址
-            String fileUrl = "http://localhost:8080/" + fileName;
-            FileInfo fileInfo = new FileInfo();
+            String fileUrl = severName + fileName;
+            FileInfoVO fileInfo = new FileInfoVO();
             fileInfo.setName(fileName);
             fileInfo.setSize(file.getSize());
             fileInfo.setPath(fileUrl);
