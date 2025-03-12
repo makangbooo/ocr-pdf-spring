@@ -7,24 +7,32 @@ import net.sourceforge.tess4j.ITessAPI;
 import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
 import jakarta.servlet.http.HttpServletResponse;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+
 
 @RestController
 @RequestMapping("/OCRToPDF")
@@ -106,14 +114,17 @@ public class OCRController {
             Path filePath = Paths.get(uploadDir, fileName);
             Files.copy(file.getInputStream(), filePath);
 
-            System.setProperty("jna.library.path", "/opt/homebrew/Cellar/tesseract/5.5.0/lib");
-            System.load("/opt/homebrew/Cellar/tesseract/5.5.0/lib/libtesseract.dylib");
+//            System.setProperty("jna.library.path", "/opt/homebrew/Cellar/tesseract/5.5.0/lib");
+//            System.load("/opt/homebrew/Cellar/tesseract/5.5.0/lib/libtesseract.dylib");
+            System.setProperty("jna.library.path", "/usr/lib/x86_64-linux-gnu"); // 示例路径
+            System.load("/usr/lib/x86_64-linux-gnu/libtesseract.so.4"); // 使用找到的具体文件
 
             // 初始化Tesseract OCR
             Tesseract tesseract = new Tesseract();
 
             tesseract.setLanguage("chi_sim"); // 设置为简体中文
-            tesseract.setDatapath("/opt/homebrew/share/tessdata");  // 指定 tessdata 数据目录
+//            tesseract.setDatapath("/opt/homebrew/share/tessdata");  // 指定 tessdata 数据目录
+            tesseract.setDatapath("/usr/share/tesseract-ocr/4.00/tessdata"); // 已确认的 tessdata 路径
             tesseract.setOcrEngineMode(ITessAPI.TessOcrEngineMode.OEM_LSTM_ONLY); // 使用LSTM引擎
             tesseract.setPageSegMode(ITessAPI.TessPageSegMode.PSM_SINGLE_BLOCK);
 
@@ -126,7 +137,7 @@ public class OCRController {
             e.printStackTrace();
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 //            return ResultGenerator.fail("Failed to OCR image");
-            return null;
+            return "Failed to OCR image";
         }
     }
 

@@ -10,6 +10,7 @@ package com.xjus.ocrpdfspring.model;
 import com.xjus.ocrpdfspring.entity.FileInfo;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
   *<p>类描述: 文件信息。</p>
@@ -23,6 +24,8 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 public class FileInfoVO extends FileInfo {
 	private static final long serialVersionUID = 1L;
+
+	private String file; // Base64 编码的图片内容
 	
 	private Integer businessType;
 }
