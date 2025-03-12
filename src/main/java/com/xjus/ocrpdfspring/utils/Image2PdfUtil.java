@@ -1,6 +1,5 @@
 package com.xjus.ocrpdfspring.utils;
 
-import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.*;
 import java.util.Base64;

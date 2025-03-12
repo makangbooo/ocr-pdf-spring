@@ -1,12 +1,9 @@
 package com.xjus.ocrpdfspring.controller;
 
-import com.xjus.ocrpdfspring.entity.FileInfo;
 import com.xjus.ocrpdfspring.model.FileInfoVO;
 import com.xjus.ocrpdfspring.utils.Image2PdfUtil;
 import com.xjus.ocrpdfspring.utils.ofdRender.utils.OfdPdfUtil;
 import jakarta.servlet.http.HttpServletResponse;
-import org.ofdrw.converter.ofdconverter.ImageConverter;
-import org.ofdrw.converter.ofdconverter.PDFConverter;
 import org.springframework.beans.factory.annotation.Value;
 
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Base64;
+
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
