@@ -91,6 +91,7 @@ public class OCRController {
         }
     }
 
+    // todo 不用远程调用了，该用python的ocr库
     @PostMapping("/ocrImage")
     public String ocrImage(@RequestParam("file") MultipartFile file, HttpServletResponse response) {
         try {

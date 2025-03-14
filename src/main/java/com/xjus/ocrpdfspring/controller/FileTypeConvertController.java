@@ -4,12 +4,17 @@ import com.xjus.ocrpdfspring.model.FileInfoVO;
 import com.xjus.ocrpdfspring.utils.Image2PdfUtil;
 import com.xjus.ocrpdfspring.utils.ofdRender.utils.OfdPdfUtil;
 import jakarta.servlet.http.HttpServletResponse;
+import net.sourceforge.tess4j.ITessAPI;
+import net.sourceforge.tess4j.Tesseract;
+import net.sourceforge.tess4j.TesseractException;
 import org.springframework.beans.factory.annotation.Value;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,7 +41,7 @@ public class FileTypeConvertController {
     private final WebClient webClient;
     private final String umiOcrUrl = "http://1.95.55.32:1224"; // 替换为你的 Umi-OCR 服务地址
 
-    private static final String PYTHON_SCRIPT_PATH = "static/image_to_pdf.py"; // Python 脚本路径
+    private static final String PYTHON_SCRIPT_PATH = "static/image_to_pdf_old.py"; // Python 脚本路径
 
     public FileTypeConvertController() {
         this.webClient = WebClient.builder().baseUrl(umiOcrUrl).build();
@@ -85,8 +90,8 @@ public class FileTypeConvertController {
         response.getOutputStream().flush();
     }
 
-    @PostMapping("/imageToPDF")
-    public FileInfoVO imageToPDF(@RequestBody List<FileInfoVO> files, HttpServletResponse response) {
+    @PostMapping("/imageToPDFOld")
+    public FileInfoVO imageToPDFOld(@RequestBody List<FileInfoVO> files, HttpServletResponse response) {
         if (files == null || files.isEmpty()) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             throw new IllegalArgumentException("No files provided");
@@ -110,6 +115,47 @@ public class FileTypeConvertController {
         result.setPath(pdfDir + "/" + outputPdfPath);
         return result;
     }
+
+    @PostMapping("/ocrImage")
+    public String ocrImage(@RequestParam("file") MultipartFile file, HttpServletResponse response) {
+        try {
+            // 读取上传的图片
+            BufferedImage image = ImageIO.read(file.getInputStream());
+
+            // 将图片保存到临时文件夹（./upload文件夹下）、
+            // 生成唯一的文件名
+            String fileName = UUID.randomUUID().toString() + "_111111_" + file.getOriginalFilename();
+            Path filePath = Paths.get(uploadDir, fileName);
+            Files.copy(file.getInputStream(), filePath);
+
+//            System.setProperty("jna.library.path", "/opt/homebrew/Cellar/tesseract/5.5.0/lib");
+//            System.load("/opt/homebrew/Cellar/tesseract/5.5.0/lib/libtesseract.dylib");
+            System.setProperty("jna.library.path", "/usr/lib/x86_64-linux-gnu"); // 示例路径
+            System.load("/usr/lib/x86_64-linux-gnu/libtesseract.so.4"); // 使用找到的具体文件
+
+            // 初始化Tesseract OCR
+            Tesseract tesseract = new Tesseract();
+
+            tesseract.setLanguage("chi_sim"); // 设置为简体中文
+//            tesseract.setDatapath("/opt/homebrew/share/tessdata");  // 指定 tessdata 数据目录
+            tesseract.setDatapath("/usr/share/tesseract-ocr/4.00/tessdata"); // 已确认的 tessdata 路径
+            tesseract.setOcrEngineMode(ITessAPI.TessOcrEngineMode.OEM_LSTM_ONLY); // 使用LSTM引擎
+            tesseract.setPageSegMode(ITessAPI.TessPageSegMode.PSM_SINGLE_BLOCK);
+
+            // 识别图片中的文字
+
+
+            return tesseract.doOCR(image);
+
+        } catch (IOException | TesseractException e) {
+            e.printStackTrace();
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+//            return ResultGenerator.fail("Failed to OCR image");
+            return "Failed to OCR image";
+        }
+    }
+
+
 
     @PostMapping("/imageToOFD")
     public FileInfoVO imageToOFD(@RequestBody List<FileInfoVO> files, HttpServletResponse response) throws IOException, InterruptedException {
