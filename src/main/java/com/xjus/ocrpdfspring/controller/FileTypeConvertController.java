@@ -45,8 +45,6 @@ public class FileTypeConvertController {
     private final WebClient webClient;
     private final String umiOcrUrl = "http://1.95.55.32:1224"; // 替换为你的 Umi-OCR 服务地址
 
-    private static final String PYTHON_SCRIPT_PATH = "static/image_to_pdf_old.py"; // Python 脚本路径
-
     public FileTypeConvertController() {
         this.webClient = WebClient.builder().baseUrl(umiOcrUrl).build();
     }
@@ -94,8 +92,8 @@ public class FileTypeConvertController {
         response.getOutputStream().flush();
     }
 
-    @PostMapping("/imageToPDFOld")
-    public FileInfoVO imageToPDFOld(@RequestBody List<FileInfoVO> files, HttpServletResponse response) {
+    @PostMapping("/imageToPDF")
+    public FileInfoVO imageToPDF(@RequestBody List<FileInfoVO> files, HttpServletResponse response) {
         if (files == null || files.isEmpty()) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             throw new IllegalArgumentException("No files provided");
@@ -118,63 +116,6 @@ public class FileTypeConvertController {
         result.setName(outputPdfPath);
         result.setPath(pdfDir + "/" + outputPdfPath);
         return result;
-    }
-
-
-
-    @PostMapping("/imageToPDF")
-    public FileInfo imageToPDF(@RequestBody List<FileInfoVO> files, HttpServletResponse response) {
-        try {
-            if (files == null || files.isEmpty()) {
-                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                return null;
-            }
-
-            // 获取上传的图片文件
-            List<String> imagePaths = new ArrayList<>();
-            for (FileInfo file : files) {
-                Path filePath = Paths.get(uploadDir, file.getName());
-                imagePaths.add(filePath.toString());
-            }
-
-            // 生成输出 PDF 文件名
-            String outputPdfName = UUID.randomUUID() + "_output.pdf";
-            Path filePath = Paths.get(pdfDir, outputPdfName);
-
-
-            // 调用 Python 脚本
-            String imagePathsStr = String.join(",", imagePaths); // 图片路径用逗号分隔
-            ProcessBuilder pb = new ProcessBuilder(
-                    "python3", PYTHON_SCRIPT_PATH, imagePathsStr, filePath.toString()
-            );
-            pb.redirectErrorStream(true); // 合并标准输出和错误输出
-            Process process = pb.start();
-
-            // 读取 Python 脚本输出
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    System.out.println(line); // 打印 Python 输出，便于调试
-                }
-            }
-
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                throw new RuntimeException("Python script execution failed with exit code: " + exitCode);
-            }
-
-            // 返回文件信息
-            FileInfoVO fileInfo = new FileInfoVO();
-            fileInfo.setName(files.get(0).getName() + "_converted.pdf");
-            fileInfo.setSize(Files.size(filePath));
-            fileInfo.setPath(severName + outputPdfName);
-            return fileInfo;
-
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            return null;
-        }
     }
 
     @PostMapping("/imageToOFD")

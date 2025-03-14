@@ -5,7 +5,7 @@ import java.io.*;
 import java.util.Base64;
 
 public class Image2PdfUtil {
-    private static final String PYTHON_SCRIPT_PATH = "static/image_to_pdf.py"; // Python 脚本路径
+    private static final String PYTHON_SCRIPT_PATH = "static/image_to_pdf_old.py"; // Python 脚本路径
 
 
     public static void image2PdfByPython(String imagePathsStr, String outputPdfPath) {
