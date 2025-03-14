@@ -1,5 +1,6 @@
 package com.xjus.ocrpdfspring.controller;
 
+import com.xjus.ocrpdfspring.entity.FileInfo;
 import com.xjus.ocrpdfspring.model.FileInfoVO;
 import com.xjus.ocrpdfspring.utils.Image2PdfUtil;
 import com.xjus.ocrpdfspring.utils.ofdRender.utils.OfdPdfUtil;
@@ -37,6 +38,9 @@ public class FileTypeConvertController {
 
     @Value("${file.ofd-dir}")
     private String ofdDir;
+
+    @Value("${file.sever-name}")
+    private String severName;
 
     private final WebClient webClient;
     private final String umiOcrUrl = "http://1.95.55.32:1224"; // 替换为你的 Umi-OCR 服务地址
@@ -116,46 +120,62 @@ public class FileTypeConvertController {
         return result;
     }
 
-    @PostMapping("/ocrImage")
-    public String ocrImage(@RequestParam("file") MultipartFile file, HttpServletResponse response) {
+
+
+    @PostMapping("/imageToPDF")
+    public FileInfo imageToPDF(@RequestBody List<FileInfoVO> files, HttpServletResponse response) {
         try {
-            // 读取上传的图片
-            BufferedImage image = ImageIO.read(file.getInputStream());
+            if (files == null || files.isEmpty()) {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                return null;
+            }
 
-            // 将图片保存到临时文件夹（./upload文件夹下）、
-            // 生成唯一的文件名
-            String fileName = UUID.randomUUID().toString() + "_111111_" + file.getOriginalFilename();
-            Path filePath = Paths.get(uploadDir, fileName);
-            Files.copy(file.getInputStream(), filePath);
+            // 获取上传的图片文件
+            List<String> imagePaths = new ArrayList<>();
+            for (FileInfo file : files) {
+                Path filePath = Paths.get(uploadDir, file.getName());
+                imagePaths.add(filePath.toString());
+            }
 
-//            System.setProperty("jna.library.path", "/opt/homebrew/Cellar/tesseract/5.5.0/lib");
-//            System.load("/opt/homebrew/Cellar/tesseract/5.5.0/lib/libtesseract.dylib");
-            System.setProperty("jna.library.path", "/usr/lib/x86_64-linux-gnu"); // 示例路径
-            System.load("/usr/lib/x86_64-linux-gnu/libtesseract.so.4"); // 使用找到的具体文件
-
-            // 初始化Tesseract OCR
-            Tesseract tesseract = new Tesseract();
-
-            tesseract.setLanguage("chi_sim"); // 设置为简体中文
-//            tesseract.setDatapath("/opt/homebrew/share/tessdata");  // 指定 tessdata 数据目录
-            tesseract.setDatapath("/usr/share/tesseract-ocr/4.00/tessdata"); // 已确认的 tessdata 路径
-            tesseract.setOcrEngineMode(ITessAPI.TessOcrEngineMode.OEM_LSTM_ONLY); // 使用LSTM引擎
-            tesseract.setPageSegMode(ITessAPI.TessPageSegMode.PSM_SINGLE_BLOCK);
-
-            // 识别图片中的文字
+            // 生成输出 PDF 文件名
+            String outputPdfName = UUID.randomUUID() + "_output.pdf";
+            Path filePath = Paths.get(pdfDir, outputPdfName);
 
 
-            return tesseract.doOCR(image);
+            // 调用 Python 脚本
+            String imagePathsStr = String.join(",", imagePaths); // 图片路径用逗号分隔
+            ProcessBuilder pb = new ProcessBuilder(
+                    "python3", PYTHON_SCRIPT_PATH, imagePathsStr, filePath.toString()
+            );
+            pb.redirectErrorStream(true); // 合并标准输出和错误输出
+            Process process = pb.start();
 
-        } catch (IOException | TesseractException e) {
+            // 读取 Python 脚本输出
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    System.out.println(line); // 打印 Python 输出，便于调试
+                }
+            }
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new RuntimeException("Python script execution failed with exit code: " + exitCode);
+            }
+
+            // 返回文件信息
+            FileInfoVO fileInfo = new FileInfoVO();
+            fileInfo.setName(files.get(0).getName() + "_converted.pdf");
+            fileInfo.setSize(Files.size(filePath));
+            fileInfo.setPath(severName + outputPdfName);
+            return fileInfo;
+
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-//            return ResultGenerator.fail("Failed to OCR image");
-            return "Failed to OCR image";
+            return null;
         }
     }
-
-
 
     @PostMapping("/imageToOFD")
     public FileInfoVO imageToOFD(@RequestBody List<FileInfoVO> files, HttpServletResponse response) throws IOException, InterruptedException {
