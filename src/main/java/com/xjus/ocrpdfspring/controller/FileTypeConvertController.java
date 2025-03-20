@@ -72,12 +72,6 @@ public class FileTypeConvertController {
         Path pdfdst = Paths.get(pdfPath.toString());
         org.ofdrw.converter.ConvertHelper.toPdf(ofdSrc, pdfdst);
 
-
-
-
-
-
-
 //
 //
 //
@@ -161,6 +155,27 @@ public class FileTypeConvertController {
         result.setPath(ofdDir + "/" + outputOfdPath);
         return result;
 
+    }
+
+    @PostMapping("/pdfToOFD")
+    public FileInfoVO pdfToOFD(@RequestBody List<FileInfoVO> files, HttpServletResponse response) throws IOException, InterruptedException {
+        if (files == null || files.isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            throw new IllegalArgumentException("No files provided");
+        }
+        // 取files中的第一个元素
+        FileInfoVO file = files.get(0);
+        String filePath = uploadDir + "/" +UUID.randomUUID() + file.getName();
+        // 将 base64 字符串转换为pdf
+        Image2PdfUtil.convertBase64ToImage(file.getFile(), filePath);
+
+        String outputOfdPath = UUID.randomUUID() + "output123.ofd";
+        OfdPdfUtil.convertToOfd(filePath, ofdDir + "/" + outputOfdPath);
+
+        FileInfoVO result = new FileInfoVO();
+        result.setName(outputOfdPath);
+        result.setPath(ofdDir + "/" + outputOfdPath);
+        return result;
     }
 
 }
