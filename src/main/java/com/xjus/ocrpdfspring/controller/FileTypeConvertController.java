@@ -1,10 +1,12 @@
 package com.xjus.ocrpdfspring.controller;
 
+import com.xjus.ocrpdfspring.config.FontConfig;
 import com.xjus.ocrpdfspring.model.FileInfoVO;
 import com.xjus.ocrpdfspring.service.FileTypeConvertService;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.ofdrw.converter.ConvertHelper;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +38,10 @@ public class FileTypeConvertController {
     @Autowired
     private FileTypeConvertService fileTypeConvertService;
 
+    static {
+        FontConfig.configureFontLoader();
+    }
+
     // 接收Blob类型的ofd文件，返回FileInfo对象，属性path为转换后的pdf文件的URL
     // todo 转化为pdf后为单层，返回FileInfo
     @PostMapping("/ofd2pdf")
@@ -54,10 +60,8 @@ public class FileTypeConvertController {
         // 保存上传的文件
         Files.copy(file.getInputStream(), uploadPath);
 
-
         // todo 测试ofd2pdf方法和toPdf的
         ConvertHelper.ofd2pdf(uploadPath, pdfPath);
-//        org.ofdrw.converter.ConvertHelper.toPdf(ofdSrc, pdfdst);
 
         byte[] fileContent = Files.readAllBytes(pdfPath);
         String resultBase64 = Base64.getEncoder().encodeToString(fileContent);
@@ -86,7 +90,6 @@ public class FileTypeConvertController {
         }
         FileInfoVO result = this.fileTypeConvertService.imageToOFD(files);
         return result;
-
     }
 
     @PostMapping("/pdfToOFD")
