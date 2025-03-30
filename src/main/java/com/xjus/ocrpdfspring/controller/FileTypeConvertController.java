@@ -67,4 +67,24 @@ public class FileTypeConvertController {
         return result;
     }
 
+    @PostMapping("/pdf2pdf")
+    public FileInfoVO pdf2pdf(@RequestBody List<FileInfoVO> files, HttpServletResponse response) throws Exception {
+        if (files == null || files.isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            throw new IllegalArgumentException("No files provided");
+        }
+        FileInfoVO result = this.fileTypeConvertService.pdf2pdf(files);
+        return result;
+    }
+
+
+    @PostMapping("/ofd2ofd")
+    public FileInfoVO ofd2ofd(@RequestBody List<FileInfoVO> files, HttpServletResponse response) throws Exception {
+        if (files == null || files.isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            throw new IllegalArgumentException("No files provided");
+        }
+        FileInfoVO result = this.fileTypeConvertService.ofd2ofd(files);
+        return result;
+    }
 }
