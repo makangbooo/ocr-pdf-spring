@@ -141,6 +141,17 @@
             <classifier>osx-aarch_64</classifier> <!-- M1/M2 芯片用 aarch_64 -->
             <scope>runtime</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>opencv-platform</artifactId>
+            <version>4.7.0-1.5.9</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacpp</artifactId>
+            <version>1.5.9</version>
+        </dependency>
     </dependencies>
 
     <build>
